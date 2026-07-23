@@ -1,7 +1,6 @@
-import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
-import sharp from "sharp";
+import { Resvg } from "@resvg/resvg-js";
 
 import type { DashboardChart, DashboardDocument } from "../shared/dashboard-contract.js";
 
@@ -9,22 +8,10 @@ const WIDTH = 1200;
 const COLORS = ["#2f61df", "#18a873", "#f07a32", "#805ad5", "#ca3f64"];
 const require = createRequire(import.meta.url);
 
-async function fontFaceCss(): Promise<string> {
-  const files = [
-    { weight: 400, path: require.resolve("@fontsource/noto-sans-thai/files/noto-sans-thai-thai-400-normal.woff2") },
-    { weight: 700, path: require.resolve("@fontsource/noto-sans-thai/files/noto-sans-thai-thai-700-normal.woff2") },
-  ];
-  const faces = await Promise.all(files.map(async ({ weight, path }) => {
-    const data = await readFile(path);
-    return `@font-face {
-      font-family: "Dashboard Sans";
-      src: url("data:font/woff2;base64,${data.toString("base64")}") format("woff2");
-      font-style: normal;
-      font-weight: ${weight};
-    }`;
-  }));
-  return faces.join("\n");
-}
+const fontFiles = [
+  require.resolve("@expo-google-fonts/noto-sans-thai/400Regular/NotoSansThai_400Regular.ttf"),
+  require.resolve("@expo-google-fonts/noto-sans-thai/700Bold/NotoSansThai_700Bold.ttf"),
+];
 
 interface ChartRow {
   label: string;
@@ -85,7 +72,7 @@ function legendSvg(series: string[], top: number): string {
   }).join("");
 }
 
-function barChartSvg(chart: DashboardChart, rows: ChartRow[], series: string[]): { body: string; height: number } {
+function barChartSvg(rows: ChartRow[], series: string[]): { body: string; height: number } {
   const rowHeight = 44;
   const top = series.length > 1 ? 190 + Math.ceil(series.length / 4) * 28 : 190;
   const height = top + rows.length * rowHeight + 70;
@@ -115,7 +102,7 @@ function barChartSvg(chart: DashboardChart, rows: ChartRow[], series: string[]):
   return { body: body.join(""), height };
 }
 
-function lineChartSvg(chart: DashboardChart, rows: ChartRow[], series: string[]): { body: string; height: number } {
+function lineChartSvg(rows: ChartRow[], series: string[]): { body: string; height: number } {
   const height = 650;
   const plotLeft = 110;
   const plotTop = 205;
@@ -158,19 +145,17 @@ export async function renderDashboardPreview(dashboard: DashboardDocument): Prom
 
   const chartType = chart.chartType.toLowerCase();
   const rendered = chartType.includes("line") || chartType.includes("area") || chartType.includes("time")
-    ? lineChartSvg(chart, rows, series)
-    : barChartSvg(chart, rows, series);
-  const embeddedFonts = await fontFaceCss();
+    ? lineChartSvg(rows, series)
+    : barChartSvg(rows, series);
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${rendered.height}" viewBox="0 0 ${WIDTH} ${rendered.height}">
       <style>
-        ${embeddedFonts}
-        text { font-family: "Dashboard Sans", Inter, "Segoe UI", Arial, sans-serif; fill: #172033; }
+        text { font-family: "Noto Sans Thai"; fill: #172033; }
         .eyebrow { font-size: 18px; font-weight: 700; letter-spacing: 2px; fill: #2f61df; }
-        .title { font-size: 34px; font-weight: 750; }
+        .title { font-size: 34px; font-weight: 700; }
         .subtitle { font-size: 18px; fill: #586174; }
-        .label { font-size: 16px; font-weight: 600; }
+        .label { font-size: 16px; font-weight: 700; }
         .legend, .axis { font-size: 15px; fill: #586174; }
         .value { font-size: 15px; font-weight: 700; }
         .grid { stroke: #e7eaf0; stroke-width: 1; }
@@ -184,5 +169,12 @@ export async function renderDashboardPreview(dashboard: DashboardDocument): Prom
     </svg>
   `;
 
-  return sharp(Buffer.from(svg)).png().toBuffer();
+  const renderer = new Resvg(svg, {
+    font: {
+      fontFiles,
+      defaultFontFamily: "Noto Sans Thai",
+      loadSystemFonts: false,
+    },
+  });
+  return Buffer.from(renderer.render().asPng());
 }
