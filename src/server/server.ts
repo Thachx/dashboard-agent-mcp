@@ -11,6 +11,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { createDashboard } from "./dashboard-adapter.js";
+import { renderDashboardPreview } from "./dashboard-image.js";
 
 export const DASHBOARD_RESOURCE_URI = "ui://dashboard-agent/dashboard-app.html";
 export const DASHBOARD_TOOL_NAME = "create_dashboard";
@@ -54,8 +55,18 @@ export function createDashboardMcpServer(options: { resourceHtml?: string } = {}
     async (request) => {
       try {
         const dashboard = await createDashboard(request);
+        const preview = await renderDashboardPreview(dashboard);
         return {
-          content: [{ type: "text", text: dashboard.summary }],
+          content: [
+            { type: "text", text: dashboard.summary },
+            ...(preview
+              ? [{
+                  type: "image" as const,
+                  data: preview.toString("base64"),
+                  mimeType: "image/png",
+                }]
+              : []),
+          ],
           structuredContent: dashboard,
         };
       } catch (error) {

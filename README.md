@@ -103,6 +103,10 @@ Input:
 
 The tool is read-only and has no external side effects. It returns a `DashboardDocument` in `structuredContent`. The MCP App receives the same document and renders the charts.
 
+The result also contains a server-rendered PNG preview of the primary chart.
+This core MCP image fallback displays in clients that support tools but not the
+MCP Apps UI extension, without requiring a client-specific chart renderer.
+
 ## Prompt
 
 The server publishes an MCP prompt named `dashboard` with a required `question`

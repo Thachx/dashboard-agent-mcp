@@ -51,6 +51,14 @@ describe("MCP server", () => {
       query: "Tell me about users",
       execution: { source: "fixture" },
     });
+    const content = result.content as Array<{ type: string; data?: string; mimeType?: string }>;
+    const preview = content.find((item) => item.type === "image");
+    expect(preview).toMatchObject({ type: "image", mimeType: "image/png" });
+    if (preview?.data) {
+      expect(Buffer.from(preview.data, "base64").subarray(0, 8)).toEqual(
+        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      );
+    }
 
     await client.close();
     await server.close();
