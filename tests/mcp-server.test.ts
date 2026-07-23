@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
-import { createDashboardMcpServer, DASHBOARD_RESOURCE_URI } from "../src/server/server";
+import {
+  createDashboardMcpServer,
+  DASHBOARD_PROMPT_NAME,
+  DASHBOARD_RESOURCE_URI,
+  DASHBOARD_TOOL_NAME,
+} from "../src/server/server";
 
 describe("MCP server", () => {
   afterEach(() => { delete process.env.DASHBOARD_AGENT_FIXTURE; });
@@ -15,6 +20,11 @@ describe("MCP server", () => {
 
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
     const tools = await client.listTools();
+    const prompts = await client.listPrompts();
+    const dashboardPrompt = await client.getPrompt({
+      name: DASHBOARD_PROMPT_NAME,
+      arguments: { question: "Show active users by institute" },
+    });
     const resources = await client.listResources();
     const appResource = await client.readResource({ uri: DASHBOARD_RESOURCE_URI });
     const result = await client.callTool({
@@ -22,9 +32,14 @@ describe("MCP server", () => {
       arguments: { question: "Tell me about users", maxCharts: 2 },
     });
 
-    expect(tools.tools.map((tool) => tool.name)).toContain("create_dashboard");
+    expect(tools.tools.map((tool) => tool.name)).toContain(DASHBOARD_TOOL_NAME);
+    expect(prompts.prompts.map((prompt) => prompt.name)).toContain(DASHBOARD_PROMPT_NAME);
+    expect(dashboardPrompt.messages[0]?.content).toMatchObject({
+      type: "text",
+      text: expect.stringContaining(DASHBOARD_TOOL_NAME),
+    });
     expect(resources.resources.map((resource) => resource.uri)).toContain(DASHBOARD_RESOURCE_URI);
-    expect(tools.tools.find((tool) => tool.name === "create_dashboard")?._meta).toMatchObject({
+    expect(tools.tools.find((tool) => tool.name === DASHBOARD_TOOL_NAME)?._meta).toMatchObject({
       ui: { resourceUri: DASHBOARD_RESOURCE_URI },
     });
     expect(appResource.contents[0]).toMatchObject({

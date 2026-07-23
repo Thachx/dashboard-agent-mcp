@@ -103,6 +103,14 @@ Input:
 
 The tool is read-only and has no external side effects. It returns a `DashboardDocument` in `structuredContent`. The MCP App receives the same document and renders the charts.
 
+## Prompt
+
+The server publishes an MCP prompt named `dashboard` with a required `question`
+argument. Compatible MCP hosts may expose it as `/dashboard` or in their prompt
+picker. The prompt directs the host to call `create_dashboard` rather than answer
+with an ungrounded substitute. Literal slash-command behavior remains controlled
+by the MCP host.
+
 ## Compatibility
 
 Interactive rendering requires an MCP Apps-compatible host. A host that only implements core MCP still receives the text summary and structured dashboard data, but it cannot display the embedded iframe without MCP Apps support.

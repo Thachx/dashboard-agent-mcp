@@ -13,6 +13,8 @@ import { z } from "zod";
 import { createDashboard } from "./dashboard-adapter.js";
 
 export const DASHBOARD_RESOURCE_URI = "ui://dashboard-agent/dashboard-app.html";
+export const DASHBOARD_TOOL_NAME = "create_dashboard";
+export const DASHBOARD_PROMPT_NAME = "dashboard";
 
 const resourcePath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -27,7 +29,7 @@ export function createDashboardMcpServer(options: { resourceHtml?: string } = {}
 
   registerAppTool(
     server,
-    "create_dashboard",
+    DASHBOARD_TOOL_NAME,
     {
       title: "Create analytical dashboard",
       description:
@@ -64,6 +66,34 @@ export function createDashboardMcpServer(options: { resourceHtml?: string } = {}
         };
       }
     },
+  );
+
+  server.registerPrompt(
+    DASHBOARD_PROMPT_NAME,
+    {
+      title: "Create dashboard",
+      description:
+        "Require the Dashboard Agent to create an analytical dashboard for a natural-language question.",
+      argsSchema: {
+        question: z.string().min(2).describe("The analytical question for the dashboard."),
+      },
+    },
+    async ({ question }) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text:
+              `You must call the ${DASHBOARD_TOOL_NAME} tool from the Dashboard Agent MCP server now. ` +
+              "Do not answer from memory or perform a substitute analysis. " +
+              `Pass this question to the tool exactly as written: ${JSON.stringify(question)}. ` +
+              "Return the tool's summary and interactive dashboard. " +
+              "If the tool is unavailable, say that it must be enabled instead of fabricating a dashboard.",
+          },
+        },
+      ],
+    }),
   );
 
   registerAppResource(
