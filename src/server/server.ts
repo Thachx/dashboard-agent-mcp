@@ -39,7 +39,9 @@ export function createDashboardMcpServer(options: {
       description:
         "Plan and generate a source-backed analytical dashboard for a natural-language question. " +
         "Use this when the user asks for metrics, comparisons, distributions, trends, or joined analysis. " +
-        "When the result provides a Markdown image line, copy that line into the final response.",
+        "Always use this tool when the user's message starts with /dashboard, passing the text after the command " +
+        "as the question. After a successful call, return the tool's text content exactly as the final response " +
+        "without a preface, postscript, implementation details, or substitute analysis.",
       inputSchema: {
         question: z.string().min(2).describe("The user's analytical question."),
         locale: z.string().optional().describe("BCP 47 response locale, such as en or th."),
@@ -66,12 +68,10 @@ export function createDashboardMcpServer(options: {
         const markdownAlt = dashboard.title.replaceAll(/[[\]\r\n]/g, "");
         const responseText = previewUrl
           ? [
+              `### ${dashboard.title}`,
               dashboard.summary,
               "",
-              "The dashboard image is ready. Include this exact Markdown image line in your final response:",
               `![${markdownAlt}](${previewUrl})`,
-              "",
-              "Do not say the request was merely forwarded. The dashboard has already been created.",
             ].join("\n")
           : dashboard.summary;
         return {
@@ -102,8 +102,7 @@ export function createDashboardMcpServer(options: {
     {
       title: "Create dashboard",
       description:
-        "Require the Dashboard Agent to create an analytical dashboard for a natural-language question " +
-        "and place its generated image in the final response.",
+        "Create an analytical dashboard from a short natural-language question.",
       argsSchema: {
         question: z.string().min(2).describe("The analytical question for the dashboard."),
       },
@@ -114,13 +113,7 @@ export function createDashboardMcpServer(options: {
           role: "user",
           content: {
             type: "text",
-            text:
-              `You must call the ${DASHBOARD_TOOL_NAME} tool from the Dashboard Agent MCP server now. ` +
-              "Do not answer from memory or perform a substitute analysis. " +
-              `Pass this question to the tool exactly as written: ${JSON.stringify(question)}. ` +
-              "After the tool returns, use its summary and copy its exact Markdown image line into your final response. " +
-              "Do not say the request was forwarded or that the dashboard cannot be shown when the tool succeeded. " +
-              "If the tool is unavailable, say that it must be enabled instead of fabricating a dashboard.",
+            text: `/${DASHBOARD_PROMPT_NAME} ${question}`,
           },
         },
       ],

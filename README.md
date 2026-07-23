@@ -109,6 +109,8 @@ MCP Apps UI extension, without requiring a client-specific chart renderer.
 HTTP deployments also publish a temporary image URL and return a ready-to-copy
 Markdown image line. This lets text-only models place the generated graph in
 their final response instead of needing to understand binary MCP image content.
+The complete text result is already formatted as a clean final answer so the
+calling model can return it verbatim without exposing handoff instructions.
 
 Set `MCP_PUBLIC_BASE_URL` to the URL the user's browser can reach. With a local
 SSH tunnel on port 3001, use `http://127.0.0.1:3001`. Preview retention is
@@ -119,9 +121,10 @@ configurable through `DASHBOARD_PREVIEW_TTL_MS` and
 
 The server publishes an MCP prompt named `dashboard` with a required `question`
 argument. Compatible MCP hosts may expose it as `/dashboard` or in their prompt
-picker. The prompt directs the host to call `create_dashboard` rather than answer
-with an ungrounded substitute. Literal slash-command behavior remains controlled
-by the MCP host.
+picker. The prompt expands only to `/dashboard` plus the question; tool-selection
+and response-format instructions remain in the tool description instead of the
+visible user message. Literal slash-command behavior remains controlled by the
+MCP host.
 
 ## Compatibility
 
