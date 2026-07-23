@@ -20,6 +20,7 @@
     "start:stdio": "node dist/server/server/main.js --stdio"
   },
   "dependencies": {
+    "@fontsource/noto-sans-thai": "^5.3.0",
     "@modelcontextprotocol/ext-apps": "^1.7.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "dotenv": "^17.2.3",

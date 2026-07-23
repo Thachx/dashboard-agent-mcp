@@ -1,9 +1,30 @@
+import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+
 import sharp from "sharp";
 
 import type { DashboardChart, DashboardDocument } from "../shared/dashboard-contract.js";
 
 const WIDTH = 1200;
 const COLORS = ["#2f61df", "#18a873", "#f07a32", "#805ad5", "#ca3f64"];
+const require = createRequire(import.meta.url);
+
+async function fontFaceCss(): Promise<string> {
+  const files = [
+    { weight: 400, path: require.resolve("@fontsource/noto-sans-thai/files/noto-sans-thai-thai-400-normal.woff2") },
+    { weight: 700, path: require.resolve("@fontsource/noto-sans-thai/files/noto-sans-thai-thai-700-normal.woff2") },
+  ];
+  const faces = await Promise.all(files.map(async ({ weight, path }) => {
+    const data = await readFile(path);
+    return `@font-face {
+      font-family: "Dashboard Sans";
+      src: url("data:font/woff2;base64,${data.toString("base64")}") format("woff2");
+      font-style: normal;
+      font-weight: ${weight};
+    }`;
+  }));
+  return faces.join("\n");
+}
 
 interface ChartRow {
   label: string;
@@ -139,11 +160,13 @@ export async function renderDashboardPreview(dashboard: DashboardDocument): Prom
   const rendered = chartType.includes("line") || chartType.includes("area") || chartType.includes("time")
     ? lineChartSvg(chart, rows, series)
     : barChartSvg(chart, rows, series);
+  const embeddedFonts = await fontFaceCss();
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${rendered.height}" viewBox="0 0 ${WIDTH} ${rendered.height}">
       <style>
-        text { font-family: Inter, "Segoe UI", Arial, sans-serif; fill: #172033; }
+        ${embeddedFonts}
+        text { font-family: "Dashboard Sans", Inter, "Segoe UI", Arial, sans-serif; fill: #172033; }
         .eyebrow { font-size: 18px; font-weight: 700; letter-spacing: 2px; fill: #2f61df; }
         .title { font-size: 34px; font-weight: 750; }
         .subtitle { font-size: 18px; fill: #586174; }
