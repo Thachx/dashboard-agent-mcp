@@ -106,6 +106,14 @@ The tool is read-only and has no external side effects. It returns a `DashboardD
 The result also contains a server-rendered PNG preview of the primary chart.
 This core MCP image fallback displays in clients that support tools but not the
 MCP Apps UI extension, without requiring a client-specific chart renderer.
+HTTP deployments also publish a temporary image URL and return a ready-to-copy
+Markdown image line. This lets text-only models place the generated graph in
+their final response instead of needing to understand binary MCP image content.
+
+Set `MCP_PUBLIC_BASE_URL` to the URL the user's browser can reach. With a local
+SSH tunnel on port 3001, use `http://127.0.0.1:3001`. Preview retention is
+configurable through `DASHBOARD_PREVIEW_TTL_MS` and
+`DASHBOARD_PREVIEW_MAX_ENTRIES`.
 
 ## Prompt
 

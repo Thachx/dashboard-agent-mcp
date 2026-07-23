@@ -7,6 +7,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Request, Response } from "express";
 
+import { createDashboardPreviewStore } from "./dashboard-preview-store.js";
 import { createDashboardMcpServer } from "./server.js";
 
 async function runStdio(): Promise<void> {
@@ -17,6 +18,14 @@ async function runStdio(): Promise<void> {
 async function runHttp(): Promise<void> {
   const host = process.env.MCP_HOST ?? "127.0.0.1";
   const port = Number(process.env.MCP_PORT ?? 3001);
+  const publicBaseUrl = (process.env.MCP_PUBLIC_BASE_URL ?? `http://127.0.0.1:${port}`)
+    .replace(/\/+$/, "");
+  const previewTtlMs = Number(process.env.DASHBOARD_PREVIEW_TTL_MS ?? 86_400_000);
+  const previewMaxEntries = Number(process.env.DASHBOARD_PREVIEW_MAX_ENTRIES ?? 100);
+  const previews = createDashboardPreviewStore({
+    ttlMs: previewTtlMs,
+    maxEntries: previewMaxEntries,
+  });
   const allowedHosts = process.env.MCP_ALLOWED_HOSTS
     ?.split(",")
     .map((value) => value.trim())
@@ -30,8 +39,29 @@ async function runHttp(): Promise<void> {
     response.json({ ok: true, service: "dashboard-agent-mcp" });
   });
 
+  app.get("/dashboard-previews/:id.png", (request: Request, response: Response) => {
+    const id = Array.isArray(request.params.id) ? request.params.id[0] : request.params.id;
+    const preview = id ? previews.get(id) : undefined;
+    if (!preview) {
+      response.status(404).json({ error: "Dashboard preview not found or expired" });
+      return;
+    }
+    response
+      .set({
+        "Cache-Control": `private, max-age=${Math.max(0, Math.floor(previewTtlMs / 1000))}`,
+        "Content-Type": "image/png",
+        "X-Content-Type-Options": "nosniff",
+      })
+      .send(preview);
+  });
+
   app.all("/mcp", async (request: Request, response: Response) => {
-    const server = createDashboardMcpServer();
+    const server = createDashboardMcpServer({
+      publishPreview: (preview) => {
+        const id = previews.put(preview);
+        return `${publicBaseUrl}/dashboard-previews/${id}.png`;
+      },
+    });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     response.on("close", () => {
       void transport.close();

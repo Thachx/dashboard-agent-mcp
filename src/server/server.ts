@@ -22,7 +22,10 @@ const resourcePath = path.resolve(
   "../../ui/dashboard-app.html",
 );
 
-export function createDashboardMcpServer(options: { resourceHtml?: string } = {}): McpServer {
+export function createDashboardMcpServer(options: {
+  resourceHtml?: string;
+  publishPreview?: (preview: Buffer) => string | Promise<string>;
+} = {}): McpServer {
   const server = new McpServer({
     name: "dashboard-agent-mcp",
     version: "0.1.0",
@@ -35,7 +38,8 @@ export function createDashboardMcpServer(options: { resourceHtml?: string } = {}
       title: "Create analytical dashboard",
       description:
         "Plan and generate a source-backed analytical dashboard for a natural-language question. " +
-        "Use this when the user asks for metrics, comparisons, distributions, trends, or joined analysis.",
+        "Use this when the user asks for metrics, comparisons, distributions, trends, or joined analysis. " +
+        "When the result provides a Markdown image line, copy that line into the final response.",
       inputSchema: {
         question: z.string().min(2).describe("The user's analytical question."),
         locale: z.string().optional().describe("BCP 47 response locale, such as en or th."),
@@ -56,9 +60,23 @@ export function createDashboardMcpServer(options: { resourceHtml?: string } = {}
       try {
         const dashboard = await createDashboard(request);
         const preview = await renderDashboardPreview(dashboard);
+        const previewUrl = preview && options.publishPreview
+          ? await options.publishPreview(preview)
+          : undefined;
+        const markdownAlt = dashboard.title.replaceAll(/[[\]\r\n]/g, "");
+        const responseText = previewUrl
+          ? [
+              dashboard.summary,
+              "",
+              "The dashboard image is ready. Include this exact Markdown image line in your final response:",
+              `![${markdownAlt}](${previewUrl})`,
+              "",
+              "Do not say the request was merely forwarded. The dashboard has already been created.",
+            ].join("\n")
+          : dashboard.summary;
         return {
           content: [
-            { type: "text", text: dashboard.summary },
+            { type: "text", text: responseText },
             ...(preview
               ? [{
                   type: "image" as const,
@@ -84,7 +102,8 @@ export function createDashboardMcpServer(options: { resourceHtml?: string } = {}
     {
       title: "Create dashboard",
       description:
-        "Require the Dashboard Agent to create an analytical dashboard for a natural-language question.",
+        "Require the Dashboard Agent to create an analytical dashboard for a natural-language question " +
+        "and place its generated image in the final response.",
       argsSchema: {
         question: z.string().min(2).describe("The analytical question for the dashboard."),
       },
@@ -99,7 +118,8 @@ export function createDashboardMcpServer(options: { resourceHtml?: string } = {}
               `You must call the ${DASHBOARD_TOOL_NAME} tool from the Dashboard Agent MCP server now. ` +
               "Do not answer from memory or perform a substitute analysis. " +
               `Pass this question to the tool exactly as written: ${JSON.stringify(question)}. ` +
-              "Return the tool's summary and interactive dashboard. " +
+              "After the tool returns, use its summary and copy its exact Markdown image line into your final response. " +
+              "Do not say the request was forwarded or that the dashboard cannot be shown when the tool succeeded. " +
               "If the tool is unavailable, say that it must be enabled instead of fabricating a dashboard.",
           },
         },

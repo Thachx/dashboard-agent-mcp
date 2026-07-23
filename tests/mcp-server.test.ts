@@ -15,7 +15,10 @@ describe("MCP server", () => {
   it("advertises the app and returns a portable dashboard document", async () => {
     process.env.DASHBOARD_AGENT_FIXTURE = "true";
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    const server = createDashboardMcpServer({ resourceHtml: "<!doctype html><div id=\"root\"></div>" });
+    const server = createDashboardMcpServer({
+      resourceHtml: "<!doctype html><div id=\"root\"></div>",
+      publishPreview: () => "http://127.0.0.1:3001/dashboard-previews/test.png",
+    });
     const client = new Client({ name: "dashboard-agent-test", version: "1.0.0" });
 
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
@@ -52,6 +55,11 @@ describe("MCP server", () => {
       execution: { source: "fixture" },
     });
     const content = result.content as Array<{ type: string; data?: string; mimeType?: string }>;
+    expect(content.find((item) => item.type === "text")).toMatchObject({
+      text: expect.stringContaining(
+        "![Users by Learning Status](http://127.0.0.1:3001/dashboard-previews/test.png)",
+      ),
+    });
     const preview = content.find((item) => item.type === "image");
     expect(preview).toMatchObject({ type: "image", mimeType: "image/png" });
     if (preview?.data) {
