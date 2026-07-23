@@ -4,7 +4,6 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
 import {
   createDashboardMcpServer,
-  DASHBOARD_PROMPT_NAME,
   DASHBOARD_RESOURCE_URI,
   DASHBOARD_TOOL_NAME,
 } from "../src/server/server";
@@ -23,11 +22,6 @@ describe("MCP server", () => {
 
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
     const tools = await client.listTools();
-    const prompts = await client.listPrompts();
-    const dashboardPrompt = await client.getPrompt({
-      name: DASHBOARD_PROMPT_NAME,
-      arguments: { question: "Show active users by institute" },
-    });
     const resources = await client.listResources();
     const appResource = await client.readResource({ uri: DASHBOARD_RESOURCE_URI });
     const result = await client.callTool({
@@ -36,11 +30,8 @@ describe("MCP server", () => {
     });
 
     expect(tools.tools.map((tool) => tool.name)).toContain(DASHBOARD_TOOL_NAME);
-    expect(prompts.prompts.map((prompt) => prompt.name)).toContain(DASHBOARD_PROMPT_NAME);
-    expect(dashboardPrompt.messages[0]?.content).toEqual({
-      type: "text",
-      text: "/dashboard Show active users by institute",
-    });
+    expect(tools.tools.find((tool) => tool.name === DASHBOARD_TOOL_NAME)?.description)
+      .toContain("message starts with /dashboard");
     expect(resources.resources.map((resource) => resource.uri)).toContain(DASHBOARD_RESOURCE_URI);
     expect(tools.tools.find((tool) => tool.name === DASHBOARD_TOOL_NAME)?._meta).toMatchObject({
       ui: { resourceUri: DASHBOARD_RESOURCE_URI },

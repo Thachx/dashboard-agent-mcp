@@ -117,14 +117,14 @@ SSH tunnel on port 3001, use `http://127.0.0.1:3001`. Preview retention is
 configurable through `DASHBOARD_PREVIEW_TTL_MS` and
 `DASHBOARD_PREVIEW_MAX_ENTRIES`.
 
-## Prompt
+## Dashboard command
 
-The server publishes an MCP prompt named `dashboard` with a required `question`
-argument. Compatible MCP hosts may expose it as `/dashboard` or in their prompt
-picker. The prompt expands only to `/dashboard` plus the question; tool-selection
-and response-format instructions remain in the tool description instead of the
-visible user message. Literal slash-command behavior remains controlled by the
-MCP host.
+Type `/dashboard` followed by the analytical question as a normal chat message.
+The MCP tool description privately tells the model to route that message to
+`create_dashboard`; no MCP prompt is published, so clients do not expand hidden
+instructions into the visible composer. Because MCP has no portable hidden slash
+command mechanism, `/dashboard` is intentionally not added to client prompt
+autocomplete.
 
 ## Compatibility
 

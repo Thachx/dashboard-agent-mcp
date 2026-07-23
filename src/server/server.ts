@@ -15,7 +15,6 @@ import { renderDashboardPreview } from "./dashboard-image.js";
 
 export const DASHBOARD_RESOURCE_URI = "ui://dashboard-agent/dashboard-app.html";
 export const DASHBOARD_TOOL_NAME = "create_dashboard";
-export const DASHBOARD_PROMPT_NAME = "dashboard";
 
 const resourcePath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -95,29 +94,6 @@ export function createDashboardMcpServer(options: {
         };
       }
     },
-  );
-
-  server.registerPrompt(
-    DASHBOARD_PROMPT_NAME,
-    {
-      title: "Create dashboard",
-      description:
-        "Create an analytical dashboard from a short natural-language question.",
-      argsSchema: {
-        question: z.string().min(2).describe("The analytical question for the dashboard."),
-      },
-    },
-    async ({ question }) => ({
-      messages: [
-        {
-          role: "user",
-          content: {
-            type: "text",
-            text: `/${DASHBOARD_PROMPT_NAME} ${question}`,
-          },
-        },
-      ],
-    }),
   );
 
   registerAppResource(
