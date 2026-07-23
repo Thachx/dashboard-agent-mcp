@@ -9,8 +9,9 @@ const COLORS = ["#2f61df", "#18a873", "#f07a32", "#805ad5", "#ca3f64"];
 const require = createRequire(import.meta.url);
 
 const fontFiles = [
-  require.resolve("@expo-google-fonts/noto-sans-thai/400Regular/NotoSansThai_400Regular.ttf"),
-  require.resolve("@expo-google-fonts/noto-sans-thai/700Bold/NotoSansThai_700Bold.ttf"),
+  require.resolve("@expo-google-fonts/sarabun/400Regular/Sarabun_400Regular.ttf"),
+  require.resolve("@expo-google-fonts/sarabun/600SemiBold/Sarabun_600SemiBold.ttf"),
+  require.resolve("@expo-google-fonts/sarabun/700Bold/Sarabun_700Bold.ttf"),
 ];
 
 interface ChartRow {
@@ -73,11 +74,11 @@ function legendSvg(series: string[], top: number): string {
 }
 
 function barChartSvg(rows: ChartRow[], series: string[]): { body: string; height: number } {
-  const rowHeight = 44;
+  const rowHeight = 46;
   const top = series.length > 1 ? 190 + Math.ceil(series.length / 4) * 28 : 190;
   const height = top + rows.length * rowHeight + 70;
-  const plotLeft = 270;
-  const plotWidth = 820;
+  const plotLeft = 310;
+  const plotWidth = 780;
   const maxTotal = Math.max(...rows.map((row) => row.total), 1);
   const body: string[] = [legendSvg(series, 155)];
 
@@ -151,13 +152,14 @@ export async function renderDashboardPreview(dashboard: DashboardDocument): Prom
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${rendered.height}" viewBox="0 0 ${WIDTH} ${rendered.height}">
       <style>
-        text { font-family: "Noto Sans Thai"; fill: #172033; }
+        text { font-family: "Sarabun"; fill: #172033; }
         .eyebrow { font-size: 18px; font-weight: 700; letter-spacing: 2px; fill: #2f61df; }
         .title { font-size: 34px; font-weight: 700; }
         .subtitle { font-size: 18px; fill: #586174; }
-        .label { font-size: 16px; font-weight: 700; }
-        .legend, .axis { font-size: 15px; fill: #586174; }
-        .value { font-size: 15px; font-weight: 700; }
+        .label { font-size: 18px; font-weight: 600; }
+        .legend { font-size: 16px; fill: #586174; }
+        .axis { font-size: 15px; fill: #586174; }
+        .value { font-size: 16px; font-weight: 600; }
         .grid { stroke: #e7eaf0; stroke-width: 1; }
       </style>
       <rect width="100%" height="100%" fill="#ffffff"/>
@@ -172,7 +174,7 @@ export async function renderDashboardPreview(dashboard: DashboardDocument): Prom
   const renderer = new Resvg(svg, {
     font: {
       fontFiles,
-      defaultFontFamily: "Noto Sans Thai",
+      defaultFontFamily: "Sarabun",
       loadSystemFonts: false,
     },
   });

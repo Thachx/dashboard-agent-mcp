@@ -20,7 +20,7 @@
     "start:stdio": "node dist/server/server/main.js --stdio"
   },
   "dependencies": {
-    "@expo-google-fonts/noto-sans-thai": "^0.4.2",
+    "@expo-google-fonts/sarabun": "^0.4.1",
     "@modelcontextprotocol/ext-apps": "^1.7.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@resvg/resvg-js": "^2.6.2",
