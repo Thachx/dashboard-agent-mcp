@@ -35,6 +35,9 @@ npm start
 
 The MCP endpoint is `http://127.0.0.1:3001/mcp` and the health endpoint is `http://127.0.0.1:3001/health`.
 
+When the MCP client runs in Docker Desktop, add `host.docker.internal` to
+`MCP_ALLOWED_HOSTS` and connect the client to the host-published port.
+
 For a local server without the Dashboard Agent backend:
 
 ```powershell

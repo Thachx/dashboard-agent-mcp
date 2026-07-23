@@ -17,7 +17,14 @@ async function runStdio(): Promise<void> {
 async function runHttp(): Promise<void> {
   const host = process.env.MCP_HOST ?? "127.0.0.1";
   const port = Number(process.env.MCP_PORT ?? 3001);
-  const app = createMcpExpressApp({ host });
+  const allowedHosts = process.env.MCP_ALLOWED_HOSTS
+    ?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const app = createMcpExpressApp({
+    host,
+    ...(allowedHosts?.length ? { allowedHosts } : {}),
+  });
 
   app.get("/health", (_request: Request, response: Response) => {
     response.json({ ok: true, service: "dashboard-agent-mcp" });
