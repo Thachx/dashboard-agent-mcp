@@ -11,7 +11,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { createDashboard } from "./dashboard-adapter.js";
-import { renderDashboardPreview } from "./dashboard-image.js";
+import { renderDashboardPreviews } from "./dashboard-image.js";
 
 export const DASHBOARD_RESOURCE_URI = "ui://dashboard-agent/dashboard-app.html";
 export const DASHBOARD_TOOL_NAME = "create_dashboard";
@@ -34,13 +34,14 @@ export function createDashboardMcpServer(options: {
     server,
     DASHBOARD_TOOL_NAME,
     {
-      title: "Create analytical dashboard",
+      title: "Analyze data or create a dashboard",
       description:
-        "Plan and generate a source-backed analytical dashboard for a natural-language question. " +
-        "Use this when the user asks for metrics, comparisons, distributions, trends, or joined analysis. " +
+        "Answer a source-backed analytical question and generate charts only when the request calls for them. " +
+        "Use this for metrics, factual data questions, record lookups, comparisons, distributions, trends, or joined analysis. " +
         "Always use this tool when the user's message starts with /dashboard, passing the text after the command " +
-        "as the question. After a successful call, return the tool's text content exactly as the final response " +
-        "without a preface, postscript, implementation details, or substitute analysis.",
+        "as the question. Chart requests include one Markdown image per generated chart; non-chart requests return " +
+        "the analytical answer as text. After a successful call, return the tool's text content verbatim as the final response. " +
+        "Do not omit, rewrite, reorder, or repeat its image lines, and do not add substitute analysis.",
       inputSchema: {
         question: z.string().min(2).describe("The user's analytical question."),
         locale: z.string().optional().describe("BCP 47 response locale, such as en or th."),
@@ -60,31 +61,26 @@ export function createDashboardMcpServer(options: {
     async (request) => {
       try {
         const dashboard = await createDashboard(request);
-        const preview = await renderDashboardPreview(dashboard);
-        const previewUrl = preview && options.publishPreview
-          ? await options.publishPreview(preview)
-          : undefined;
-        const markdownAlt = dashboard.title.replaceAll(/[[\]\r\n]/g, "");
-        const responseText = previewUrl
-          ? [
-              `### ${dashboard.title}`,
-              dashboard.summary,
-              "",
-              `![${markdownAlt}](${previewUrl})`,
-            ].join("\n")
-          : dashboard.summary;
+        const previews = await renderDashboardPreviews(dashboard);
+        const previewUrls = options.publishPreview
+          ? await Promise.all(previews.map((preview) => options.publishPreview!(preview)))
+          : [];
+        const imageLines = previewUrls.map((url, index) => {
+          const chartTitle = dashboard.charts[index]?.title ?? `Dashboard chart ${index + 1}`;
+          const markdownAlt = chartTitle.replaceAll(/[[\]\r\n]/g, "");
+          return `![${markdownAlt}](${url})`;
+        });
+        const responseText = [
+          `### ${dashboard.title}`,
+          dashboard.summary,
+          ...(imageLines.length ? ["", ...imageLines] : []),
+        ].join("\n");
         return {
-          content: [
-            { type: "text", text: responseText },
-            ...(preview
-              ? [{
-                  type: "image" as const,
-                  data: preview.toString("base64"),
-                  mimeType: "image/png",
-                }]
-              : []),
-          ],
+          content: [{ type: "text", text: responseText }],
           structuredContent: dashboard,
+          ...(previewUrls.length
+            ? { _meta: { previewUrl: previewUrls[0], previewUrls } }
+            : {}),
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown dashboard error";

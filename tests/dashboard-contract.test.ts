@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { dashboardFromGraphPayload } from "../src/shared/dashboard-contract";
+import {
+  dashboardFromGraphPayload,
+  dashboardFromTextResponse,
+} from "../src/shared/dashboard-contract";
 
 describe("dashboard contract adapter", () => {
   it("normalizes graph widget payloads without schema-specific field rules", () => {
@@ -18,5 +21,23 @@ describe("dashboard contract adapter", () => {
     expect(dashboard.charts[0]).toMatchObject({ id: "status", chartType: "donut" });
     expect(dashboard.sources[0].path).toBe("parquet/users.parquet");
     expect(dashboard.execution.source).toBe("hybrid");
+  });
+
+  it("normalizes non-chart analytical responses without inventing a chart", () => {
+    const dashboard = dashboardFromTextResponse(
+      "## User count\nThere are **42 active users**.",
+      { query: "How many active users are there?", locale: "en", timezone: "Asia/Bangkok" },
+    );
+
+    expect(dashboard).toMatchObject({
+      title: "User count",
+      summary: "There are **42 active users**.",
+      query: "How many active users are there?",
+      locale: "en",
+      timezone: "Asia/Bangkok",
+      metrics: [],
+      charts: [],
+      layout: [],
+    });
   });
 });

@@ -137,6 +137,7 @@ function ChartView({ chart }: { chart: DashboardChart }) {
 }
 
 function Dashboard({ dashboard }: { dashboard: DashboardDocument }) {
+  const hasVisuals = dashboard.metrics.length > 0 || dashboard.charts.length > 0;
   return (
     <main className="dashboard-shell">
       <header className="dashboard-header">
@@ -148,27 +149,37 @@ function Dashboard({ dashboard }: { dashboard: DashboardDocument }) {
         <span className="execution-badge">{dashboard.execution.source}</span>
       </header>
 
-      <section className="metric-grid" aria-label="Summary metrics">
-        {dashboard.metrics.map((metric) => (
-          <article className="metric" key={metric.id}>
-            <span>{metric.label}</span>
-            <strong>{formatNumber(metric.value)}</strong>
-            {metric.hint && <small>{metric.hint}</small>}
-          </article>
-        ))}
-      </section>
+      {!hasVisuals && (
+        <section className="answer-panel" aria-label="Analysis answer">
+          <div>{dashboard.summary}</div>
+        </section>
+      )}
 
-      <section className="chart-grid" aria-label="Dashboard charts">
-        {dashboard.charts.map((chart) => (
-          <article className={`chart chart-${chart.chartType.toLowerCase()}`} key={chart.id}>
-            <div className="chart-heading">
-              <h2>{chart.title}</h2>
-              {chart.reason && <p>{chart.reason}</p>}
-            </div>
-            <div className="chart-canvas"><ChartView chart={chart} /></div>
-          </article>
-        ))}
-      </section>
+      {dashboard.metrics.length > 0 && (
+        <section className="metric-grid" aria-label="Summary metrics">
+          {dashboard.metrics.map((metric) => (
+            <article className="metric" key={metric.id}>
+              <span>{metric.label}</span>
+              <strong>{formatNumber(metric.value)}</strong>
+              {metric.hint && <small>{metric.hint}</small>}
+            </article>
+          ))}
+        </section>
+      )}
+
+      {dashboard.charts.length > 0 && (
+        <section className="chart-grid" aria-label="Dashboard charts">
+          {dashboard.charts.map((chart) => (
+            <article className={`chart chart-${chart.chartType.toLowerCase()}`} key={chart.id}>
+              <div className="chart-heading">
+                <h2>{chart.title}</h2>
+                {chart.reason && <p>{chart.reason}</p>}
+              </div>
+              <div className="chart-canvas"><ChartView chart={chart} /></div>
+            </article>
+          ))}
+        </section>
+      )}
 
       {(dashboard.sources.length > 0 || dashboard.reasoningSummary.length > 0) && (
         <footer className="dashboard-details">

@@ -32,6 +32,8 @@ describe("MCP server", () => {
     expect(tools.tools.map((tool) => tool.name)).toContain(DASHBOARD_TOOL_NAME);
     expect(tools.tools.find((tool) => tool.name === DASHBOARD_TOOL_NAME)?.description)
       .toContain("message starts with /dashboard");
+    expect(tools.tools.find((tool) => tool.name === DASHBOARD_TOOL_NAME)?.description)
+      .toContain("non-chart requests return");
     expect(resources.resources.map((resource) => resource.uri)).toContain(DASHBOARD_RESOURCE_URI);
     expect(tools.tools.find((tool) => tool.name === DASHBOARD_TOOL_NAME)?._meta).toMatchObject({
       ui: { resourceUri: DASHBOARD_RESOURCE_URI },
@@ -45,20 +47,23 @@ describe("MCP server", () => {
       query: "Tell me about users",
       execution: { source: "fixture" },
     });
-    const content = result.content as Array<{ type: string; data?: string; mimeType?: string }>;
+    const content = result.content as Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
     expect(content.find((item) => item.type === "text")).toMatchObject({
       text:
         "### Users by Learning Status\n" +
         "103.3K users are represented across three learning statuses and six departments.\n\n" +
-        "![Users by Learning Status](http://127.0.0.1:3001/dashboard-previews/test.png)",
+        "![Users by Learning Status](http://127.0.0.1:3001/dashboard-previews/test.png)\n" +
+        "![Users by Department](http://127.0.0.1:3001/dashboard-previews/test.png)",
     });
-    const preview = content.find((item) => item.type === "image");
-    expect(preview).toMatchObject({ type: "image", mimeType: "image/png" });
-    if (preview?.data) {
-      expect(Buffer.from(preview.data, "base64").subarray(0, 8)).toEqual(
-        Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-      );
-    }
+    expect(content.find((item) => item.type === "text")?.text?.match(/!\[/g)).toHaveLength(2);
+    expect(result._meta).toMatchObject({
+      previewUrl: "http://127.0.0.1:3001/dashboard-previews/test.png",
+      previewUrls: [
+        "http://127.0.0.1:3001/dashboard-previews/test.png",
+        "http://127.0.0.1:3001/dashboard-previews/test.png",
+      ],
+    });
+    expect(content.filter((item) => item.type === "image")).toHaveLength(0);
 
     await client.close();
     await server.close();

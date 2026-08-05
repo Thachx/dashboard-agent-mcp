@@ -1,5 +1,7 @@
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 
+import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { Resvg } from "@resvg/resvg-js";
 
 import type { DashboardChart, DashboardDocument } from "../shared/dashboard-contract.js";
@@ -7,12 +9,33 @@ import type { DashboardChart, DashboardDocument } from "../shared/dashboard-cont
 const WIDTH = 1200;
 const COLORS = ["#2f61df", "#18a873", "#f07a32", "#805ad5", "#ca3f64"];
 const require = createRequire(import.meta.url);
+const sarabunRegularFontFile = require.resolve("@expo-google-fonts/sarabun/400Regular/Sarabun_400Regular.ttf");
+const sarabunSemiBoldFontFile = require.resolve("@expo-google-fonts/sarabun/600SemiBold/Sarabun_600SemiBold.ttf");
+const sarabunBoldFontFile = require.resolve("@expo-google-fonts/sarabun/700Bold/Sarabun_700Bold.ttf");
+const configuredLabelFontFile = process.env.DASHBOARD_PREVIEW_LABEL_FONT_FILE?.trim();
+const labelFontFamily = (process.env.DASHBOARD_PREVIEW_LABEL_FONT_FAMILY ?? "Sarabun")
+  .replaceAll(/["\\\r\n]/g, "")
+  .trim() || "Sarabun";
+const configuredLabelFontWeight = Number(process.env.DASHBOARD_PREVIEW_LABEL_FONT_WEIGHT ?? 600);
+const labelFontWeight = Number.isFinite(configuredLabelFontWeight)
+  ? Math.min(900, Math.max(100, Math.round(configuredLabelFontWeight / 100) * 100))
+  : 600;
+
+if (configuredLabelFontFile && !existsSync(configuredLabelFontFile)) {
+  throw new Error(`Configured dashboard label font was not found: ${configuredLabelFontFile}`);
+}
 
 const fontFiles = [
-  require.resolve("@expo-google-fonts/sarabun/400Regular/Sarabun_400Regular.ttf"),
-  require.resolve("@expo-google-fonts/sarabun/600SemiBold/Sarabun_600SemiBold.ttf"),
-  require.resolve("@expo-google-fonts/sarabun/700Bold/Sarabun_700Bold.ttf"),
+  sarabunRegularFontFile,
+  sarabunSemiBoldFontFile,
+  sarabunBoldFontFile,
+  ...(configuredLabelFontFile ? [configuredLabelFontFile] : []),
 ];
+
+GlobalFonts.registerFromPath(sarabunRegularFontFile, "Sarabun");
+GlobalFonts.registerFromPath(sarabunSemiBoldFontFile, "Sarabun");
+GlobalFonts.registerFromPath(sarabunBoldFontFile, "Sarabun");
+if (configuredLabelFontFile) GlobalFonts.registerFromPath(configuredLabelFontFile, labelFontFamily);
 
 interface ChartRow {
   label: string;
@@ -34,6 +57,22 @@ function compactNumber(value: number): string {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(value);
+}
+
+function capturedLabelSvg(text: string, x: number, y: number, width: number, height: number): string {
+  const scale = 2;
+  const canvas = createCanvas(width * scale, height * scale);
+  const context = canvas.getContext("2d");
+  context.scale(scale, scale);
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "#172033";
+  context.font = `${labelFontWeight} 18px "${labelFontFamily}"`;
+  context.textAlign = "right";
+  context.textBaseline = "alphabetic";
+  context.fillText(text.normalize("NFC"), width, 20);
+
+  const data = canvas.toBuffer("image/png").toString("base64");
+  return `<image x="${x}" y="${y}" width="${width}" height="${height}" href="data:image/png;base64,${data}"/>`;
 }
 
 function truncate(value: string, maxLength: number): string {
@@ -84,7 +123,7 @@ function barChartSvg(rows: ChartRow[], series: string[]): { body: string; height
 
   rows.forEach((row, rowIndex) => {
     const y = top + rowIndex * rowHeight;
-    body.push(`<text x="${plotLeft - 18}" y="${y + 19}" text-anchor="end" class="label">${escapeXml(truncate(row.label, 32))}</text>`);
+    body.push(capturedLabelSvg(truncate(row.label, 32), 0, y - 1, plotLeft - 18, 28));
     body.push(`<line x1="${plotLeft}" y1="${y + 30}" x2="${plotLeft + plotWidth}" y2="${y + 30}" class="grid"/>`);
 
     let x = plotLeft;
@@ -137,17 +176,66 @@ function lineChartSvg(rows: ChartRow[], series: string[]): { body: string; heigh
   return { body: body.join(""), height };
 }
 
-export async function renderDashboardPreview(dashboard: DashboardDocument): Promise<Buffer | null> {
-  const chart = dashboard.charts[0];
-  if (!chart?.data.length) return null;
+function pieChartSvg(rows: ChartRow[], donut: boolean): { body: string; height: number } {
+  const values = rows
+    .map((row) => ({ label: row.label, value: Math.max(0, row.values[0] ?? 0) }))
+    .filter((row) => row.value > 0)
+    .slice(0, 8);
+  const total = values.reduce((sum, row) => sum + row.value, 0);
+  if (!total) return barChartSvg(rows, [""]);
+
+  const centerX = 330;
+  const centerY = 330;
+  const radius = 142;
+  let angle = -Math.PI / 2;
+  const body: string[] = [];
+  for (const [index, row] of values.entries()) {
+    const nextAngle = angle + (row.value / total) * Math.PI * 2;
+    const startX = centerX + Math.cos(angle) * radius;
+    const startY = centerY + Math.sin(angle) * radius;
+    const endX = centerX + Math.cos(nextAngle) * radius;
+    const endY = centerY + Math.sin(nextAngle) * radius;
+    const largeArc = nextAngle - angle > Math.PI ? 1 : 0;
+    const color = COLORS[index % COLORS.length];
+    if (values.length === 1) {
+      body.push(`<circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="${color}"/>`);
+    } else {
+      body.push(
+        `<path d="M ${centerX} ${centerY} L ${startX.toFixed(2)} ${startY.toFixed(2)} ` +
+        `A ${radius} ${radius} 0 ${largeArc} 1 ${endX.toFixed(2)} ${endY.toFixed(2)} Z" fill="${color}"/>`,
+      );
+    }
+    angle = nextAngle;
+  }
+  if (donut) {
+    body.push(`<circle cx="${centerX}" cy="${centerY}" r="72" fill="#ffffff"/>`);
+    body.push(`<text x="${centerX}" y="${centerY + 7}" text-anchor="middle" class="value">${compactNumber(total)}</text>`);
+  }
+  values.forEach((row, index) => {
+    const y = 220 + index * 48;
+    const percentage = `${((row.value / total) * 100).toFixed(1)}%`;
+    body.push(`<rect x="570" y="${y - 16}" width="18" height="18" rx="4" fill="${COLORS[index % COLORS.length]}"/>`);
+    body.push(`<text x="602" y="${y}" class="legend">${escapeXml(truncate(row.label, 32))}</text>`);
+    body.push(`<text x="1080" y="${y}" text-anchor="end" class="value">${compactNumber(row.value)} · ${percentage}</text>`);
+  });
+  return { body: body.join(""), height: Math.max(560, 280 + values.length * 48) };
+}
+
+async function renderChartPreview(
+  dashboard: DashboardDocument,
+  chart: DashboardChart,
+): Promise<Buffer | null> {
+  if (!chart.data.length) return null;
 
   const { rows, series } = chartRows(chart);
   if (!rows.length) return null;
 
   const chartType = chart.chartType.toLowerCase();
-  const rendered = chartType.includes("line") || chartType.includes("area") || chartType.includes("time")
-    ? lineChartSvg(rows, series)
-    : barChartSvg(rows, series);
+  const rendered = chartType.includes("pie") || chartType.includes("donut")
+    ? pieChartSvg(rows, chartType.includes("donut"))
+    : chartType.includes("line") || chartType.includes("area") || chartType.includes("time")
+      ? lineChartSvg(rows, series)
+      : barChartSvg(rows, series);
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${rendered.height}" viewBox="0 0 ${WIDTH} ${rendered.height}">
@@ -156,7 +244,7 @@ export async function renderDashboardPreview(dashboard: DashboardDocument): Prom
         .eyebrow { font-size: 18px; font-weight: 700; letter-spacing: 2px; fill: #2f61df; }
         .title { font-size: 34px; font-weight: 700; }
         .subtitle { font-size: 18px; fill: #586174; }
-        .label { font-size: 18px; font-weight: 600; }
+        .label { font-family: "${escapeXml(labelFontFamily)}"; font-size: 18px; font-weight: ${labelFontWeight}; }
         .legend { font-size: 16px; fill: #586174; }
         .axis { font-size: 15px; fill: #586174; }
         .value { font-size: 16px; font-weight: 600; }
@@ -179,4 +267,16 @@ export async function renderDashboardPreview(dashboard: DashboardDocument): Prom
     },
   });
   return Buffer.from(renderer.render().asPng());
+}
+
+export async function renderDashboardPreview(dashboard: DashboardDocument): Promise<Buffer | null> {
+  const chart = dashboard.charts[0];
+  return chart ? renderChartPreview(dashboard, chart) : null;
+}
+
+export async function renderDashboardPreviews(dashboard: DashboardDocument): Promise<Buffer[]> {
+  const previews = await Promise.all(
+    dashboard.charts.map((chart) => renderChartPreview(dashboard, chart)),
+  );
+  return previews.filter((preview): preview is Buffer => preview !== null);
 }

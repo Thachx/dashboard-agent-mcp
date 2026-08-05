@@ -39,7 +39,7 @@ export function assistantTextFromLangGraph(value: unknown): string {
   return contentText(root.content);
 }
 
-export function parseGraphDashboardMarker(text: string): unknown {
+export function tryParseGraphDashboardMarker(text: string): unknown | undefined {
   const payloads: string[] = [];
   let offset = 0;
   while (offset < text.length) {
@@ -52,7 +52,12 @@ export function parseGraphDashboardMarker(text: string): unknown {
     offset = end + END.length;
   }
   const latest = payloads.at(-1);
-  if (!latest) throw new Error("Dashboard Agent returned no graph dashboard widget payload.");
+  if (!latest) {
+    if (text.includes(START)) {
+      throw new Error("Dashboard Agent returned an incomplete graph dashboard widget payload.");
+    }
+    return undefined;
+  }
   try {
     return JSON.parse(latest) as unknown;
   } catch (error) {
@@ -60,3 +65,10 @@ export function parseGraphDashboardMarker(text: string): unknown {
   }
 }
 
+export function parseGraphDashboardMarker(text: string): unknown {
+  const payload = tryParseGraphDashboardMarker(text);
+  if (payload === undefined) {
+    throw new Error("Dashboard Agent returned no graph dashboard widget payload.");
+  }
+  return payload;
+}

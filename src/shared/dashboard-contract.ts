@@ -254,3 +254,36 @@ export function dashboardFromGraphPayload(
     execution: inferExecution(activity),
   });
 }
+
+export function dashboardFromTextResponse(
+  responseText: string,
+  options: { query: string; locale?: string; timezone?: string; dashboardId?: string },
+): DashboardDocument {
+  const normalized = responseText.replaceAll("\r\n", "\n").trim();
+  if (!normalized) throw new Error("Dashboard Agent returned an empty response.");
+
+  const lines = normalized.split("\n");
+  const heading = lines[0]?.match(/^#{1,6}\s+(.+?)\s*$/);
+  const title = heading?.[1]?.trim() || "Analysis result";
+  const summary = (heading ? lines.slice(1).join("\n").trim() : normalized) || title;
+
+  return DashboardDocumentSchema.parse({
+    schemaVersion: "1.0",
+    dashboardId: options.dashboardId ?? crypto.randomUUID(),
+    query: options.query,
+    title,
+    locale: options.locale ?? "en",
+    timezone: options.timezone ?? "UTC",
+    generatedAt: new Date().toISOString(),
+    summary,
+    metrics: [],
+    charts: [],
+    layout: [],
+    sources: [],
+    reasoningSummary: [{
+      stage: "Answer",
+      detail: "Returned the upstream analytical response without creating an unsupported chart.",
+    }],
+    execution: { source: "unknown", graphUsed: false, duckdbUsed: false },
+  });
+}

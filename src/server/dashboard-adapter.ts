@@ -1,9 +1,10 @@
 import { demoDashboard } from "../shared/demo-dashboard.js";
 import {
   dashboardFromGraphPayload,
+  dashboardFromTextResponse,
   type DashboardDocument,
 } from "../shared/dashboard-contract.js";
-import { assistantTextFromLangGraph, parseGraphDashboardMarker } from "./marker-parser.js";
+import { assistantTextFromLangGraph, tryParseGraphDashboardMarker } from "./marker-parser.js";
 
 export interface DashboardRequest {
   question: string;
@@ -76,7 +77,14 @@ export async function createDashboard(request: DashboardRequest): Promise<Dashbo
     settings.timeoutMs,
   );
   const assistantText = assistantTextFromLangGraph(runResponse);
-  const graphPayload = parseGraphDashboardMarker(assistantText);
+  const graphPayload = tryParseGraphDashboardMarker(assistantText);
+  if (graphPayload === undefined) {
+    return dashboardFromTextResponse(assistantText, {
+      query: request.question,
+      locale: request.locale,
+      timezone: request.timezone,
+    });
+  }
   const dashboard = dashboardFromGraphPayload(graphPayload, {
     query: request.question,
     locale: request.locale,
@@ -87,4 +95,3 @@ export async function createDashboard(request: DashboardRequest): Promise<Dashbo
     charts: dashboard.charts.slice(0, request.maxCharts ?? dashboard.charts.length),
   };
 }
-

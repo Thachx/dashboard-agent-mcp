@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { assistantTextFromLangGraph, parseGraphDashboardMarker } from "../src/server/marker-parser";
+import {
+  assistantTextFromLangGraph,
+  parseGraphDashboardMarker,
+  tryParseGraphDashboardMarker,
+} from "../src/server/marker-parser";
 
 describe("dashboard marker parser", () => {
   it("extracts the latest graph dashboard payload", () => {
@@ -22,5 +26,16 @@ describe("dashboard marker parser", () => {
       },
     };
     expect(assistantTextFromLangGraph(response)).toBe("dashboard result");
+  });
+
+  it("allows a plain non-chart assistant response", () => {
+    expect(tryParseGraphDashboardMarker("There are 42 active users.")).toBeUndefined();
+    expect(() => parseGraphDashboardMarker("There are 42 active users."))
+      .toThrow("no graph dashboard widget payload");
+  });
+
+  it("still rejects a truncated dashboard marker", () => {
+    expect(() => tryParseGraphDashboardMarker('<<<GRAPH_DASHBOARD_WIDGET>>>{"title":"Partial"}'))
+      .toThrow("incomplete graph dashboard widget payload");
   });
 });
