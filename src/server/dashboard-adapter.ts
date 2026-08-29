@@ -42,6 +42,18 @@ async function jsonRequest(url: string, init: RequestInit, timeoutMs: number): P
   return body ? JSON.parse(body) as unknown : {};
 }
 
+async function cancelRun(baseUrl: string, threadId: string, runId: string): Promise<void> {
+  try {
+    await jsonRequest(
+      `${baseUrl}/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/cancel`,
+      { method: "POST", body: "{}" },
+      5_000,
+    );
+  } catch {
+    // Preserve the original request failure; cancellation is best-effort cleanup.
+  }
+}
+
 export async function createDashboard(request: DashboardRequest): Promise<DashboardDocument> {
   const settings = config();
   if (settings.fixture) {
@@ -65,8 +77,8 @@ export async function createDashboard(request: DashboardRequest): Promise<Dashbo
   const threadId = String((threadResponse as Record<string, unknown>).thread_id ?? "");
   if (!threadId) throw new Error("Dashboard Agent did not return a thread_id.");
 
-  const runResponse = await jsonRequest(
-    `${settings.baseUrl}/threads/${encodeURIComponent(threadId)}/runs/wait`,
+  const createdRun = await jsonRequest(
+    `${settings.baseUrl}/threads/${encodeURIComponent(threadId)}/runs`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -76,6 +88,20 @@ export async function createDashboard(request: DashboardRequest): Promise<Dashbo
     },
     settings.timeoutMs,
   );
+  const runId = String((createdRun as Record<string, unknown>).run_id ?? "");
+  if (!runId) throw new Error("Dashboard Agent did not return a run_id.");
+
+  let runResponse: unknown;
+  try {
+    runResponse = await jsonRequest(
+      `${settings.baseUrl}/threads/${encodeURIComponent(threadId)}/runs/${encodeURIComponent(runId)}/join`,
+      { method: "GET" },
+      settings.timeoutMs,
+    );
+  } catch (error) {
+    await cancelRun(settings.baseUrl, threadId, runId);
+    throw error;
+  }
   const assistantText = assistantTextFromLangGraph(runResponse);
   const graphPayload = tryParseGraphDashboardMarker(assistantText);
   if (graphPayload === undefined) {

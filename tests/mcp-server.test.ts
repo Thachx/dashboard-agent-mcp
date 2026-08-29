@@ -56,6 +56,13 @@ describe("MCP server", () => {
         "![Users by Department](http://127.0.0.1:3001/dashboard-previews/test.png)",
     });
     expect(content.find((item) => item.type === "text")?.text?.match(/!\[/g)).toHaveLength(2);
+    const images = content.filter((item) => item.type === "image");
+    expect(images).toHaveLength(2);
+    for (const image of images) {
+      expect(image).toMatchObject({ type: "image", mimeType: "image/png" });
+      expect(typeof image.data).toBe("string");
+      expect((image.data ?? "").length).toBeGreaterThan(100);
+    }
     expect(result._meta).toMatchObject({
       previewUrl: "http://127.0.0.1:3001/dashboard-previews/test.png",
       previewUrls: [
@@ -63,7 +70,7 @@ describe("MCP server", () => {
         "http://127.0.0.1:3001/dashboard-previews/test.png",
       ],
     });
-    expect(content.filter((item) => item.type === "image")).toHaveLength(0);
+    expect(content.filter((item) => item.type === "image")).toHaveLength(2);
 
     await client.close();
     await server.close();

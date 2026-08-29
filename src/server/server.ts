@@ -75,8 +75,15 @@ export function createDashboardMcpServer(options: {
           dashboard.summary,
           ...(imageLines.length ? ["", ...imageLines] : []),
         ].join("\n");
+        // Native MCP image blocks let hosts such as Open WebUI attach the
+        // rendered charts directly to the chat message.
+        const imageContent = previews.slice(0, 6).map((png) => ({
+          type: "image" as const,
+          data: png.toString("base64"),
+          mimeType: "image/png",
+        }));
         return {
-          content: [{ type: "text", text: responseText }],
+          content: [{ type: "text", text: responseText }, ...imageContent],
           structuredContent: dashboard,
           ...(previewUrls.length
             ? { _meta: { previewUrl: previewUrls[0], previewUrls } }
