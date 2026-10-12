@@ -21,3 +21,13 @@ This repository exposes the existing Dashboard Graph Agent as an MCP Apps server
 - UI resource: `ui://dashboard-agent/dashboard-app.html`.
 - Canonical result: `DashboardDocument` from `src/shared/dashboard-contract.ts`.
 
+## Work log
+- 2026-07-23: Built the Dashboard Agent MCP app server (Streamable HTTP at /mcp + optional stdio) with one high-level create_dashboard tool, the DashboardDocument contract, the self-contained ui:// app resource, configurable MCP host headers, a portable dashboard prompt, and an image fallback for clients without the UI app.
+- 2026-07-23: Embedded Thai fonts (Sarabun via @expo-google-fonts) into dashboard previews, rendered previews with bundled multilingual fonts, embedded preview images directly in model responses, simplified the prompt/final-response flow, and kept dashboard routing instructions hidden from users.
+- 2026-08-03: Rendered dashboard preview PNGs with @napi-rs/canvas (dashboard-image.ts) so charts work for any MCP client, not only the UI app.
+- 2026-08-05: Extended the contract with dashboardFromTextResponse (upstream answers without an unsupported chart) and tuned the marker parser for LangGraph assistant text.
+- 2026-08-13: Added dashboard-adapter.ts (LangGraph calls, timeout, fixture mode) plus its test suite.
+- 2026-08-24: Reworked server.ts around @modelcontextprotocol/sdk + ext-apps: markdown image lines in tool text, preview URLs via a publishPreview hook, _meta.previewUrl(s) for the UI app, and bounded inline image content (max 6).
+- 2026-08-25: Added the disk-backed preview store (data/previews, TTL sweep) so pasted chat history keeps rendering chart images after service restarts.
+- 2026-09-12: Added the vitest setup/tests for the preview store (tests/setup.ts, dashboard-preview-store.test.ts).
+NOTE: entries after 2026-07-23 describe work deployed on the production server but not yet committed in this repository (working tree is dirty); commit it before relying on the log for history.
