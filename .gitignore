@@ -227,3 +227,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Runtime-generated dashboard preview PNGs (TTL-managed)
+data/previews/
