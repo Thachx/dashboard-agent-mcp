@@ -24,12 +24,13 @@ describe("dashboard preview store", () => {
   });
 
   it("expires previews past the ttl", async () => {
-    vi.useFakeTimers({ now: Date.now() });
+    // Expiry is based on the file's real mtime (set by the OS clock), which
+    // fake timers cannot advance, so this uses a short real TTL and real time.
     const directory = await mkdtemp(path.join(tmpdir(), "previews-"));
-    const store = createDashboardPreviewStore({ directory, ttlMs: 1_000 });
+    const store = createDashboardPreviewStore({ directory, ttlMs: 50 });
     const id = await store.put(Buffer.from("soon-gone"));
 
-    vi.advanceTimersByTime(1_500);
+    await new Promise((resolve) => setTimeout(resolve, 150));
     await expect(store.get(id)).resolves.toBeUndefined();
 
     const files = await readdir(directory);
