@@ -30,4 +30,4 @@ This repository exposes the existing Dashboard Graph Agent as an MCP Apps server
 - 2026-08-24: Reworked server.ts around @modelcontextprotocol/sdk + ext-apps: markdown image lines in tool text, preview URLs via a publishPreview hook, _meta.previewUrl(s) for the UI app, and bounded inline image content (max 6).
 - 2026-08-25: Added the disk-backed preview store (data/previews, TTL sweep) so pasted chat history keeps rendering chart images after service restarts.
 - 2026-09-12: Added the vitest setup/tests for the preview store (tests/setup.ts, dashboard-preview-store.test.ts).
-NOTE: entries after 2026-07-23 describe work deployed on the production server but not yet committed in this repository (working tree is dirty); commit it before relying on the log for history.
+NOTE: the 2026-08-03 to 2026-08-25 entries above were committed from the local development clone as "Improve dashboard rendering and response modes" (2d238e3) and "Persist previews and cancel timed-out agent runs" (fdc7efe).
